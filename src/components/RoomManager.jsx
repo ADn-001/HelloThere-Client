@@ -7,11 +7,11 @@ import Chat from './Chat';
 
 // Component to manage room creation, joining, and group chat
 const RoomManager = ({ peerId }) => {
-  const [error, setError] = useState(null);
   const [location, setLocation] = useState(null);
   const [peerList, setPeerList] = useState([]);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [notification, setNotification] = useState({ message: '', visible: false });
 
   // Get geolocation on mount
   useEffect(() => {
@@ -26,7 +26,6 @@ const RoomManager = ({ peerId }) => {
       })
       .catch(err => {
         console.error('[RoomManager] Geolocation error:', err);
-        setError('Failed to get location: ' + err.message);
       });
   }, [peerId]);
 
@@ -55,7 +54,6 @@ const RoomManager = ({ peerId }) => {
         // WebRTC initialization handled by peer-joined messages
       } else {
         console.error('[RoomManager] Error initiating group chat:', data.error);
-        setError(`Failed to initiate group chat: ${data.error}`);
         if (data.error === 'Peer not found in any room' || data.error === 'Room not found') {
           setPeerList([]);
           setMessages([]);
@@ -64,7 +62,29 @@ const RoomManager = ({ peerId }) => {
       }
     } catch (error) {
       console.error('[RoomManager] Error initiating group chat:', error);
-      setError('Failed to initiate group chat');
+    }
+  }, [peerId]);
+
+  // Handle leave action
+  const handleLeave = useCallback(async () => {
+    console.log('[RoomManager] Leave button clicked, sending /leave request');
+    try {
+      const response = await fetch('https://localhost:5000/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ peerId }),
+      });
+      if (response.ok) {
+        console.log('[RoomManager] Successfully left room');
+        closeWebRTC();
+        setPeerList([]);
+        setMessages([]);
+        setNotification({ message: 'Left room', visible: true });
+      } else {
+        console.error('[RoomManager] Error leaving room:', await response.json());
+      }
+    } catch (error) {
+      console.error('[RoomManager] Error sending /leave request:', error);
     }
   }, [peerId]);
 
@@ -95,7 +115,7 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Broadcast response: ${data.status}, peerList: ${data.peerList}`);
       if (data.status === 'created' || data.status === 'joined') {
-        setError(null);
+        setNotification({ message: 'Room joined', visible: true });
         if (data.peerList && data.peerList.length > 0) {
           setPeerList(data.peerList);
           initiateGroupChat(data.peerList);
@@ -103,20 +123,10 @@ const RoomManager = ({ peerId }) => {
           setPeerList([]);
         }
       } else {
-        setError(`Unexpected broadcast response: ${data.status}`);
         console.log(`[RoomManager] Unexpected response data:`, data);
       }
     } catch (error) {
       console.error('[RoomManager] Broadcast error:', error);
-      let errorMessage = 'Broadcast failed: Unknown error';
-      if (error.name === 'AbortError') {
-        errorMessage = 'Broadcast failed: Request timed out. Check server availability.';
-      } else if (error.message.includes('Failed to fetch')) {
-        errorMessage = 'Failed to connect to server. Please ensure the server is running and the certificate is trusted.';
-      } else {
-        errorMessage = `Broadcast failed: ${error.message}`;
-      }
-      setError(errorMessage);
       if (attempt <= 3) {
         const delay = Math.pow(2, attempt) * 1000;
         console.log(`[RoomManager] Retrying broadcast in ${delay}ms (attempt ${attempt + 1})`);
@@ -149,12 +159,11 @@ const RoomManager = ({ peerId }) => {
       if (data.status === 'removed') {
         setPeerList([]);
         setMessages([]);
-        setError('Removed from room due to distance');
         closeWebRTC();
+        setNotification({ message: 'Removed from room due to distance', visible: true });
       }
     } catch (error) {
       console.error('[RoomManager] Error checking location:', error);
-      setError('Failed to check location');
     }
   }, [peerId, location]);
 
@@ -178,7 +187,6 @@ const RoomManager = ({ peerId }) => {
             console.log(`[RoomManager] WebRTC initialized with ${msg.sender}`);
           } catch (error) {
             console.error(`[RoomManager] Failed to initialize WebRTC with ${msg.sender}:`, error);
-            setError(`Failed to connect to peer ${msg.sender}`);
           }
         } else if (msg.type === 'peer-left') {
           console.log(`[RoomManager] Peer ${msg.sender} left, closing WebRTC`);
@@ -192,7 +200,6 @@ const RoomManager = ({ peerId }) => {
             console.log(`[RoomManager] Processed offer from ${msg.sender}`);
           } catch (error) {
             console.error(`[RoomManager] Failed to process offer from ${msg.sender}:`, error);
-            setError(`Failed to process offer from ${msg.sender}`);
           }
         } else if (msg.type === 'answer') {
           console.log(`[RoomManager] Received answer from ${msg.sender}, signaling state: ${getSignalingState(msg.sender)}`);
@@ -201,7 +208,6 @@ const RoomManager = ({ peerId }) => {
             console.log(`[RoomManager] Processed answer from ${msg.sender}`);
           } catch (error) {
             console.error(`[RoomManager] Failed to process answer from ${msg.sender}:`, error);
-            setError(`Failed to process answer from ${msg.sender}`);
           }
         } else if (msg.type === 'ice-candidate') {
           console.log(`[RoomManager] Received ICE candidate from ${msg.sender}`);
@@ -210,13 +216,11 @@ const RoomManager = ({ peerId }) => {
             console.log(`[RoomManager] Processed ICE candidate from ${msg.sender}`);
           } catch (error) {
             console.error(`[RoomManager] Failed to process ICE candidate from ${msg.sender}:`, error);
-            setError(`Failed to process ICE candidate from ${msg.sender}`);
           }
         }
       }
     } catch (error) {
       console.error('[RoomManager] Error polling signaling messages:', error);
-      setError('Failed to poll signaling messages');
     }
   }, [peerId, onMessageCallback]);
 
@@ -233,6 +237,16 @@ const RoomManager = ({ peerId }) => {
       setInputText('');
     }
   }, [inputText, peerId]);
+
+  // Handle notification auto-hide
+  useEffect(() => {
+    if (notification.visible) {
+      const timer = setTimeout(() => {
+        setNotification(prev => ({ ...prev, visible: false }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   // Handle broadcasting
   useEffect(() => {
@@ -255,7 +269,6 @@ const RoomManager = ({ peerId }) => {
   useEffect(() => {
     console.log(`[RoomManager] Location check useEffect triggered for peer ${peerId}`);
     let locationCheckInterval;
-    // Delay initial check to ensure geolocation is available
     setTimeout(() => {
       checkLocation();
       locationCheckInterval = setInterval(() => {
@@ -285,25 +298,127 @@ const RoomManager = ({ peerId }) => {
   }, [pollSignalingMessages, peerId]);
 
   return (
-    <div className="p-4">
-      <p className="text-lg">Group Chat</p>
-      {error && <p className="text-red-500">{error}</p>}
+    <div className="room-manager">
+      <style>
+        {`
+          .room-manager {
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
+          .top-bar {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+          }
+
+          .connect-button {
+            background-color: #10B981;
+            color: #FFFFFF;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+          }
+
+          .connect-button:hover {
+            background-color: #059669;
+          }
+
+          .leave-button {
+            background-color: #EF4444;
+            color: #FFFFFF;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: background-color 0.2s;
+          }
+
+          .leave-button:hover {
+            background-color: #DC2626;
+          }
+
+          .peer-status {
+            font-size: 14px;
+            color: #D1D5DB;
+            text-align: center;
+            margin-top: 60px;
+          }
+
+          .peer-status.no-peers {
+            color: #6B7280;
+          }
+
+          .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #343541;
+            color: #FFFFFF;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 2000;
+          }
+
+          .notification.visible {
+            opacity: 1;
+          }
+        `}
+      </style>
+      <div className="top-bar">
+        <button
+          className="connect-button"
+          onClick={() => {
+            console.log('[RoomManager] Manual broadcast triggered via Connect button');
+            broadcast();
+          }}
+        >
+          Connect
+        </button>
+        <button
+          className="leave-button"
+          onClick={handleLeave}
+          title="Leave room"
+        >
+          ✕
+        </button>
+      </div>
+      <p className={`peer-status ${peerList.length === 0 ? 'no-peers' : ''}`}>
+        {peerList.length > 0 ? `Connected to ${peerList.length} peer(s)` : 'No peers connected'}
+      </p>
+      {notification.visible && (
+        <div className="notification visible">
+          {notification.message}
+        </div>
+      )}
       <PeerList peerList={peerList} />
       <Chat
         messages={messages}
         inputText={inputText}
         setInputText={setInputText}
         handleSendMessage={handleSendMessage}
+        peerId={peerId}
       />
-      <button
-        className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
-        onClick={() => {
-          console.log('[RoomManager] Manual broadcast triggered via Retry button');
-          broadcast();
-        }}
-      >
-        Retry
-      </button>
     </div>
   );
 };
