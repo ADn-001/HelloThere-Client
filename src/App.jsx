@@ -54,6 +54,11 @@ const App = () => {
             justify-content: center;
           }
 
+          .app-container .content-container {
+            width: 100%;
+            max-width: 100vw;
+          }
+
           .app-container h1 {
             font-size: 24px;
             font-weight: 700;

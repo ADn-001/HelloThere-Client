@@ -2,7 +2,6 @@ import React, { useEffect, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { getCurrentPosition } from '../utils/geolocation';
 import { initWebRTC, closeWebRTC, sendMessage, setRemoteDescription, addIceCandidate, getSignalingState } from '../utils/webrtc';
-import PeerList from './PeerList';
 import Chat from './Chat';
 
 // Component to manage room creation, joining, and group chat
@@ -302,7 +301,6 @@ const RoomManager = ({ peerId }) => {
       <style>
         {`
           .room-manager {
-            max-width: 600px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -312,7 +310,8 @@ const RoomManager = ({ peerId }) => {
           .top-bar {
             position: fixed;
             top: 16px;
-            left: 16px;
+            right: 16px;
+            left: auto;
             display: flex;
             gap: 8px;
             z-index: 1000;
@@ -358,6 +357,7 @@ const RoomManager = ({ peerId }) => {
             color: #D1D5DB;
             text-align: center;
             margin-top: 60px;
+            margin-bottom: 16px;
           }
 
           .peer-status.no-peers {
@@ -411,7 +411,6 @@ const RoomManager = ({ peerId }) => {
           {notification.message}
         </div>
       )}
-      <PeerList peerList={peerList} />
       <Chat
         messages={messages}
         inputText={inputText}
