@@ -15,18 +15,36 @@ const Chat = ({ messages, inputText, setInputText, handleSendMessage, peerId }) 
             display: flex;
             flex-direction: column;
             gap: 16px;
+            flex-grow: 1;
+            width: 100%;
           }
 
           .chat-messages {
-            max-height: 60vh;
+            flex-grow: 1;
             overflow-y: auto;
             padding: 8px;
+            margin-bottom: 64px;
+          }
+
+          .message-container {
+            display: flex;
+            flex-direction: column;
+            margin: 4px 0;
+          }
+
+          .message-container-self {
+            align-items: flex-end;
+            margin-bottom: 2px;
+          }
+
+          .message-container-other {
+            align-items: flex-start;
+            margin-bottom: 2px;
           }
 
           .message {
             max-width: 70%;
             padding: 8px 12px;
-            margin: 4px 8px;
             border-radius: 12px;
             font-size: 16px;
             color: #FFFFFF;
@@ -34,22 +52,44 @@ const Chat = ({ messages, inputText, setInputText, handleSendMessage, peerId }) 
 
           .message-self {
             background-color: #10B981;
-            margin-left: auto;
-            text-align: right;
+            margin-left: calc(2% + 8px);
+            margin-right: 1px;
+            margin-bottom: 2px;
+            padding-left: calc(10% + 8px);
           }
 
           .message-other {
             background-color: #343541;
-            margin-right: auto;
-            text-align: left;
+            margin-right: calc(2% + 8px);
+            margin-left: 1px;
+            margin-bottom: 2px;
+            padding-right: calc(25% + 8px);
           }
 
-          .message-sender {
+          .message-sender-self {
+            text-align: right;
+            color: #D1D5DB;
+            font-size: 12px;
             font-weight: 600;
-            margin-right: 8px;
+            margin-right: 5px;
+            margin-bottom: 3px;
+          }
+
+          .message-sender-other {
+            text-align: left;
+            color: #D1D5DB;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 5px;
+            margin-bottom: 3px;
           }
 
           .chat-input-container {
+            position: fixed;
+            bottom: 16px;
+            width: calc(95% - 16px);
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
             gap: 8px;
           }
@@ -90,12 +130,14 @@ const Chat = ({ messages, inputText, setInputText, handleSendMessage, peerId }) 
         {safeMessages.map((msg) => (
           <div
             key={msg.id}
-            className={`message ${msg.sender === peerId ? 'message-self' : 'message-other'}`}
+            className={`message-container ${msg.sender === peerId ? 'message-container-self' : 'message-container-other'}`}
           >
-            <span className="message-sender">
-              {msg.sender === peerId ? 'You' : msg.sender}:
-            </span>
-            {msg.text}
+            <div className={msg.sender === peerId ? 'message-sender-self' : 'message-sender-other'}>
+              {msg.sender === peerId ? 'You' : msg.sender}
+            </div>
+            <div className={`message ${msg.sender === peerId ? 'message-self' : 'message-other'}`}>
+              {msg.text}
+            </div>
           </div>
         ))}
       </div>
