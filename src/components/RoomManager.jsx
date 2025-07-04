@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { getCurrentPosition } from '../utils/geolocation';
-import { initWebRTC, closeWebRTC, sendMessage, setRemoteDescription, addIceCandidate } from '../utils/webrtc';
+import { initWebRTC, closeWebRTC, sendMessage, setRemoteDescription, addIceCandidate, getSignalingState } from '../utils/webrtc';
 import PeerList from './PeerList';
 import Chat from './Chat';
 
@@ -12,7 +12,6 @@ const RoomManager = ({ peerId }) => {
   const [peerList, setPeerList] = useState([]);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-  const [isRoomAssigned, setIsRoomAssigned] = useState(false);
 
   // Get geolocation on mount
   useEffect(() => {
@@ -41,7 +40,7 @@ const RoomManager = ({ peerId }) => {
     }]);
   }, []);
 
-  // Initiate group chat (notify server, but don't initialize WebRTC here)
+  // Initiate group chat to update active chats and peer list
   const initiateGroupChat = useCallback(async (peers) => {
     console.log(`[RoomManager] Initiating group chat with peers: ${peers}`);
     try {
@@ -53,12 +52,11 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       if (response.ok) {
         console.log(`[RoomManager] Group chat peers: ${data.peers}`);
-        // WebRTC initialization is handled by pollSignalingMessages for peer-joined or offer messages
+        // WebRTC initialization handled by peer-joined messages
       } else {
         console.error('[RoomManager] Error initiating group chat:', data.error);
         setError(`Failed to initiate group chat: ${data.error}`);
         if (data.error === 'Peer not found in any room' || data.error === 'Room not found') {
-          setIsRoomAssigned(false);
           setPeerList([]);
           setMessages([]);
           closeWebRTC();
@@ -98,7 +96,6 @@ const RoomManager = ({ peerId }) => {
       console.log(`[RoomManager] Broadcast response: ${data.status}, peerList: ${data.peerList}`);
       if (data.status === 'created' || data.status === 'joined') {
         setError(null);
-        setIsRoomAssigned(true);
         if (data.peerList && data.peerList.length > 0) {
           setPeerList(data.peerList);
           initiateGroupChat(data.peerList);
@@ -150,7 +147,6 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Check location response: ${data.status}`);
       if (data.status === 'removed') {
-        setIsRoomAssigned(false);
         setPeerList([]);
         setMessages([]);
         setError('Removed from room due to distance');
@@ -177,21 +173,45 @@ const RoomManager = ({ peerId }) => {
         if (msg.type === 'peer-joined') {
           console.log(`[RoomManager] Peer ${msg.sender} joined`);
           setPeerList(prev => prev.includes(msg.sender) ? prev : [...prev, msg.sender]);
-          await initWebRTC(peerId, msg.sender, onMessageCallback); // Initialize WebRTC for new peer
+          try {
+            await initWebRTC(peerId, msg.sender, onMessageCallback);
+            console.log(`[RoomManager] WebRTC initialized with ${msg.sender}`);
+          } catch (error) {
+            console.error(`[RoomManager] Failed to initialize WebRTC with ${msg.sender}:`, error);
+            setError(`Failed to connect to peer ${msg.sender}`);
+          }
         } else if (msg.type === 'peer-left') {
           console.log(`[RoomManager] Peer ${msg.sender} left, closing WebRTC`);
           closeWebRTC(msg.sender);
           setPeerList(prev => prev.filter(p => p !== msg.sender));
           setMessages(prev => prev.filter(m => m.sender !== msg.sender));
         } else if (msg.type === 'offer') {
-          console.log(`[RoomManager] Received offer from ${msg.sender}`);
-          await initWebRTC(peerId, msg.sender, onMessageCallback, msg.data);
+          console.log(`[RoomManager] Received offer from ${msg.sender}, processing`);
+          try {
+            await initWebRTC(peerId, msg.sender, onMessageCallback, msg.data);
+            console.log(`[RoomManager] Processed offer from ${msg.sender}`);
+          } catch (error) {
+            console.error(`[RoomManager] Failed to process offer from ${msg.sender}:`, error);
+            setError(`Failed to process offer from ${msg.sender}`);
+          }
         } else if (msg.type === 'answer') {
-          console.log(`[RoomManager] Received answer from ${msg.sender}`);
-          await setRemoteDescription(msg.sender, msg.data);
+          console.log(`[RoomManager] Received answer from ${msg.sender}, signaling state: ${getSignalingState(msg.sender)}`);
+          try {
+            await setRemoteDescription(msg.sender, msg.data);
+            console.log(`[RoomManager] Processed answer from ${msg.sender}`);
+          } catch (error) {
+            console.error(`[RoomManager] Failed to process answer from ${msg.sender}:`, error);
+            setError(`Failed to process answer from ${msg.sender}`);
+          }
         } else if (msg.type === 'ice-candidate') {
           console.log(`[RoomManager] Received ICE candidate from ${msg.sender}`);
-          await addIceCandidate(msg.sender, msg.data);
+          try {
+            await addIceCandidate(msg.sender, msg.data);
+            console.log(`[RoomManager] Processed ICE candidate from ${msg.sender}`);
+          } catch (error) {
+            console.error(`[RoomManager] Failed to process ICE candidate from ${msg.sender}:`, error);
+            setError(`Failed to process ICE candidate from ${msg.sender}`);
+          }
         }
       }
     } catch (error) {
@@ -231,15 +251,18 @@ const RoomManager = ({ peerId }) => {
     };
   }, [broadcast, peerId]);
 
-  // Handle location checking
+  // Handle location checking with initial delay
   useEffect(() => {
     console.log(`[RoomManager] Location check useEffect triggered for peer ${peerId}`);
     let locationCheckInterval;
-    checkLocation();
-    locationCheckInterval = setInterval(() => {
-      console.log('[RoomManager] Checking location');
+    // Delay initial check to ensure geolocation is available
+    setTimeout(() => {
       checkLocation();
-    }, 10 * 1000);
+      locationCheckInterval = setInterval(() => {
+        console.log('[RoomManager] Checking location');
+        checkLocation();
+      }, 10 * 1000);
+    }, 2000);
     return () => {
       console.log('[RoomManager] Cleaning up location check interval');
       clearInterval(locationCheckInterval);
