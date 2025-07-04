@@ -39,11 +39,36 @@ const App = () => {
   }, [peerId]);
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-4">Proximity Chat</h1>
-      <ErrorBoundary>
-        <RoomManager key={peerId} peerId={peerId} />
-      </ErrorBoundary>
+    <div className="app-container">
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+          .app-container {
+            background-color: #202123;
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #D1D5DB;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+          }
+
+          .app-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #D1D5DB;
+            text-align: center;
+            margin-bottom: 16px;
+          }
+        `}
+      </style>
+      <div className="content-container">
+        <h1>Hello-There</h1>
+        <ErrorBoundary>
+          <RoomManager key={peerId} peerId={peerId} />
+        </ErrorBoundary>
+      </div>
     </div>
   );
 };
