@@ -1,4 +1,4 @@
-const connections = {}; // { [targetPeerId]: { peerConnection: RTCPeerConnection, dataChannel: RTCDataChannel, pollInterval: Interval, pendingIceCandidates: Array } }
+const connections = {}; // { [targetPeerId]: { peerConnection: RTCPeerConnection, dataChannel: RTCDataChannel, role: 'offering'|'answering', pendingIceCandidates: Array } }
 
 /**
  * Initialize WebRTC for group chat
@@ -8,11 +8,15 @@ const connections = {}; // { [targetPeerId]: { peerConnection: RTCPeerConnection
  * @param {Object} [offer] - Optional offer to process
  */
 export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer = null) {
-  console.log(`[Client] Initializing WebRTC for peer ${peerId} with ${targetPeerId}`);
+  console.log(`[Client] Initializing WebRTC for peer ${peerId} with ${targetPeerId}, offer provided: ${!!offer}`);
 
-  // If connection exists and offer is provided, process the offer
+  // If connection exists and we're processing an offer
   if (connections[targetPeerId] && offer) {
-    console.log(`[Client] Processing offer for existing connection with ${targetPeerId}`);
+    console.log(`[Client] Processing offer for existing connection with ${targetPeerId}, current role: ${connections[targetPeerId].role}`);
+    if (connections[targetPeerId].role === 'offering') {
+      console.log(`[Client] Ignoring offer from ${targetPeerId} as we are already offering`);
+      return;
+    }
     try {
       const { peerConnection } = connections[targetPeerId];
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
@@ -21,7 +25,7 @@ export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer 
       await peerConnection.setLocalDescription(answer);
       console.log(`[Client] Sending answer to ${targetPeerId}:`, answer);
       await sendSignalingMessage(peerId, targetPeerId, { type: 'answer', answer });
-      // Process any pending ICE candidates
+      // Process pending ICE candidates
       if (connections[targetPeerId].pendingIceCandidates) {
         for (const candidate of connections[targetPeerId].pendingIceCandidates) {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -39,7 +43,7 @@ export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer 
 
   // Skip if connection already exists and no offer is provided
   if (connections[targetPeerId]) {
-    console.log(`[Client] Connection with ${targetPeerId} already exists`);
+    console.log(`[Client] Connection with ${targetPeerId} already exists, role: ${connections[targetPeerId].role}`);
     return;
   }
 
@@ -49,7 +53,10 @@ export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer 
   const peerConnection = new RTCPeerConnection(configuration);
   const dataChannel = peerConnection.createDataChannel('chat', { negotiated: true, id: 0 });
 
-  connections[targetPeerId] = { peerConnection, dataChannel, pollInterval: null, pendingIceCandidates: [] };
+  // Track role as 'offering'
+  connections[targetPeerId] = { peerConnection, dataChannel, role: 'offering', pendingIceCandidates: [] };
+
+  console.log(`[Client] Created new connection with ${targetPeerId} as offerer`);
 
   dataChannel.onopen = () => {
     console.log(`[Client] Data channel opened with peer ${targetPeerId}`);
@@ -83,6 +90,8 @@ export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer 
   try {
     if (offer) {
       console.log(`[Client] Processing offer for ${targetPeerId}:`, offer);
+      connections[targetPeerId].role = 'answering';
+      console.log(`[Client] Set role to answering for ${targetPeerId}`);
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       console.log(`[Client] Set remote description for ${targetPeerId}`);
       const answer = await peerConnection.createAnswer();
@@ -104,17 +113,36 @@ export async function initWebRTC(peerId, targetPeerId, onMessageCallback, offer 
 }
 
 /**
+ * Get the signaling state for a peer
+ * @param {string} targetPeerId - Target peer's ID
+ * @returns {string} - The signaling state or 'none' if no connection exists
+ */
+export function getSignalingState(targetPeerId) {
+  if (connections[targetPeerId] && connections[targetPeerId].peerConnection) {
+    return connections[targetPeerId].peerConnection.signalingState;
+  }
+  return 'none';
+}
+
+/**
  * Set remote description for a peer
  */
 export async function setRemoteDescription(targetPeerId, description) {
   if (connections[targetPeerId] && connections[targetPeerId].peerConnection) {
+    const peerConnection = connections[targetPeerId].peerConnection;
     try {
-      await connections[targetPeerId].peerConnection.setRemoteDescription(new RTCSessionDescription(description));
+      console.log(`[Client] Setting remote description for ${targetPeerId}, current signaling state: ${peerConnection.signalingState}`);
+      if (description.type === 'answer' && peerConnection.signalingState === 'stable') {
+        console.log(`[Client] InvalidStateError detected for ${targetPeerId}, resetting connection`);
+        closeWebRTC(targetPeerId);
+        throw new Error('Connection reset due to InvalidStateError');
+      }
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(description));
       console.log(`[Client] Set remote description for ${targetPeerId}:`, description);
-      // Process any pending ICE candidates
+      // Process pending ICE candidates
       if (connections[targetPeerId].pendingIceCandidates) {
         for (const candidate of connections[targetPeerId].pendingIceCandidates) {
-          await connections[targetPeerId].peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
           console.log(`[Client] Added pending ICE candidate for ${targetPeerId}:`, candidate);
         }
         connections[targetPeerId].pendingIceCandidates = [];
