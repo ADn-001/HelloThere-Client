@@ -317,51 +317,246 @@ const RoomManager = ({ peerId }) => {
             z-index: 1000;
           }
 
-          .connect-button {
-            background-color: #10B981;
-            color: #FFFFFF;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            border: none;
+          .btn {
+            --color: #00A97F;
+            --color2: #202123;
+            padding: 0.7em 1.5em;
+            background-color: transparent;
+            border-radius: 6px;
+            border: 0.3px solid var(--color);
+            transition: 0.5s;
+            position: relative;
+            overflow: hidden;
             cursor: pointer;
-            transition: background-color 0.2s;
+            z-index: 1;
+            font-weight: 700;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            color: var(--color);
           }
 
-          .connect-button:hover {
-            background-color: #059669;
+          .btn::after, .btn::before {
+            content: '';
+            display: block;
+            height: 100%;
+            width: 100%;
+            transform: skew(90deg) translate(-50%, -50%);
+            position: absolute;
+            inset: 50%;
+            left: 25%;
+            z-index: -1;
+            transition: 0.5s ease-out;
+            background-color: var(--color);
           }
 
-          .leave-button {
-            background-color: #EF4444;
-            color: #FFFFFF;
+          .btn::before {
+            top: -50%;
+            left: -25%;
+            transform: skew(90deg) rotate(180deg) translate(-50%, -50%);
+          }
+
+          .btn:hover::before {
+            transform: skew(45deg) rotate(180deg) translate(-50%, -50%);
+          }
+
+          .btn:hover::after {
+            transform: skew(45deg) translate(-50%, -50%);
+          }
+
+          .btn:hover {
+            color: var(--color2);
+          }
+
+          .btn:active {
+            filter: brightness(0.7);
+            transform: scale(0.98);
+          }
+
+          .slice {
+            --c1: #202123;
+            --c2: #EF4444;
             width: 40px;
             height: 40px;
-            border-radius: 8px;
-            border: none;
+            padding: 0;
+            background-color: transparent;
+            border: calc(25px / 8) solid var(--c2);
+            border-radius: 0.2em;
             cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            transition: 300ms cubic-bezier(0.83, 0, 0.17, 1);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            transition: background-color 0.2s;
+            font-weight: 700;
+            color: var(--c2);
           }
 
-          .leave-button:hover {
-            background-color: #DC2626;
+          .slice::after {
+            content: '';
+            width: 0;
+            height: calc(300% + 1em);
+            position: absolute;
+            translate: -50% -50%;
+            inset: 50%;
+            rotate: 30deg;
+            background-color: var(--c2);
+            transition: 1000ms cubic-bezier(0.83, 0, 0.17, 1);
+          }
+
+          .slice:hover {
+            color: var(--c1);
+          }
+
+          .slice:hover::after {
+            width: calc(120% + 1em);
+          }
+
+          .slice:active {
+            scale: 0.98;
+            filter: brightness(0.9);
           }
 
           .peer-status {
-            font-size: 14px;
+            font-size: 16px;
             color: #D1D5DB;
             text-align: center;
-            margin-top: 60px;
+            margin-top: 30px;
             margin-bottom: 16px;
           }
 
-          .peer-status.no-peers {
-            color: #6B7280;
+          .peer-status .connected-word {
+            color: #00A97F;
+            text-shadow: 0 0 4px rgba(0, 169, 127, 0.6); /* mild glow */
+          }
+
+          .cssload-container * {
+            box-sizing: border-box;
+          }
+
+          .cssload-container {
+            margin: 60px auto 0 auto;
+            max-width: 524px;
+            text-align: center;
+          }
+
+          .cssload-container ul li {
+            list-style: none;
+          }
+
+          .cssload-flex-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+
+          .cssload-flex-container li {
+            padding: 9.5px;
+            height: 94px;
+            width: 94px;
+            margin: 28px 19px;
+            position: relative;
+            text-align: center;
+          }
+
+          .cssload-loading-center {
+            display: inline-block;
+            position: absolute;
+            background: #FFFFFF;
+            height: 28px;
+            width: 28px;
+            left: 34px;
+            top: 34.5px;
+            transform: rotate(45deg);
+            border-radius: 3px;
+            animation: pulse 1.3s ease infinite;
+          }
+
+          .cssload-loading {
+            display: inline-block;
+            position: relative;
+            width: 70.5px;
+            height: 70.5px;
+            margin-top: 3px;
+            transform: rotate(45deg);
+          }
+
+          .cssload-loading:after, .cssload-loading:before {
+            position: absolute;
+            content: '';
+            height: 9.5px;
+            width: 9.5px;
+            display: block;
+            top: 0;
+            background: #10B981;
+            border-radius: 3px;
+          }
+
+          .cssload-loading:after {
+            right: 0;
+            animation: square-tr 2.6s ease infinite;
+            animation-delay: 0.1625s;
+          }
+
+          .cssload-loading:before {
+            animation: square-tl 2.6s ease infinite;
+            animation-delay: 0.1625s;
+          }
+
+          .cssload-loading.cssload-two {
+            position: relative;
+            top: -75px;
+          }
+
+          .cssload-loading.cssload-two:after, .cssload-loading.cssload-two:before {
+            bottom: 0;
+            top: initial;
+          }
+
+          .cssload-loading.cssload-two:after {
+            animation: square-br 2.6s ease infinite;
+            animation-direction: reverse;
+          }
+
+          .cssload-loading.cssload-two:before {
+            animation: square-bl 2.6s ease infinite;
+            animation-direction: reverse;
+          }
+
+          @keyframes square-tl {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(0, 58.75px); }
+            50% { transform: translate(58.75px, 58.75px); }
+            75% { transform: translate(58.75px, 0); }
+          }
+
+          @keyframes square-bl {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(0, -58.75px); }
+            50% { transform: translate(58.75px, -58.75px); }
+            75% { transform: translate(58.75px, 0); }
+          }
+
+          @keyframes square-tr {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-58.75px, 0); }
+            50% { transform: translate(-58.75px, 58.75px); }
+            75% { transform: translate(0, 58.75px); }
+          }
+
+          @keyframes square-br {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-58.75px, 0); }
+            50% { transform: translate(-58.75px, -58.75px); }
+            75% { transform: translate(0, -58.75px); }
+          }
+
+          @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(45deg); }
+            75% { transform: scale(0.25) rotate(45deg); }
           }
 
           .notification {
@@ -387,7 +582,7 @@ const RoomManager = ({ peerId }) => {
       </style>
       <div className="top-bar">
         <button
-          className="connect-button"
+          className="btn"
           onClick={() => {
             console.log('[RoomManager] Manual broadcast triggered via Connect button');
             broadcast();
@@ -396,16 +591,28 @@ const RoomManager = ({ peerId }) => {
           Connect
         </button>
         <button
-          className="leave-button"
+          className="slice"
           onClick={handleLeave}
           title="Leave room"
         >
           ✕
         </button>
       </div>
-      <p className={`peer-status ${peerList.length === 0 ? 'no-peers' : ''}`}>
-        {peerList.length > 0 ? `Connected to ${peerList.length} peer(s)` : 'No peers connected'}
-      </p>
+      {peerList.length === 0 ? (
+        <div className="cssload-container">
+          <ul className="cssload-flex-container">
+            <li>
+              <span className="cssload-loading cssload-one"></span>
+              <span className="cssload-loading cssload-two"></span>
+              <span className="cssload-loading-center"></span>
+            </li>
+          </ul>
+        </div>
+      ) : (
+        <p className="peer-status">
+          <span class="connected-word">Connected</span> to {peerList.length} peer(s)
+        </p>
+      )}
       {notification.visible && (
         <div className="notification visible">
           {notification.message}
