@@ -17,14 +17,15 @@ const RoomManager = ({ peerId }) => {
     console.log(`[RoomManager] Fetching geolocation for peer ${peerId}`);
     getCurrentPosition()
       .then(position => {
-        console.log(`[RoomManager] Geolocation obtained: lat=${position.coords.latitude}, lon=${position.coords.longitude}`);
+        console.log(`[RoomManager] Geolocation obtained: lat=${position.coords.latitude}, lon=${position.coords.longitude}, accuracy=${position.coords.accuracy}`);
         setLocation({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
       })
       .catch(err => {
-        console.error('[RoomManager] Geolocation error:', err);
+        console.error(`[RoomManager] Geolocation error: ${err.message}, code: ${err.code}`);
+        setNotification({ message: 'Failed to get location', visible: true });
       });
   }, [peerId]);
 
@@ -50,17 +51,18 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       if (response.ok) {
         console.log(`[RoomManager] Group chat peers: ${data.peers}`);
-        // WebRTC initialization handled by peer-joined messages
       } else {
-        console.error('[RoomManager] Error initiating group chat:', data.error);
+        console.error(`[RoomManager] Error initiating group chat: ${data.error}`);
         if (data.error === 'Peer not found in any room' || data.error === 'Room not found') {
           setPeerList([]);
           setMessages([]);
           closeWebRTC();
+          setNotification({ message: 'Room not found', visible: true });
         }
       }
     } catch (error) {
-      console.error('[RoomManager] Error initiating group chat:', error);
+      console.error(`[RoomManager] Error initiating group chat: ${error.message}`);
+      setNotification({ message: 'Failed to initiate group chat', visible: true });
     }
   }, [peerId]);
 
@@ -80,10 +82,13 @@ const RoomManager = ({ peerId }) => {
         setMessages([]);
         setNotification({ message: 'Left room', visible: true });
       } else {
-        console.error('[RoomManager] Error leaving room:', await response.json());
+        const data = await response.json();
+        console.error(`[RoomManager] Error leaving room: ${data.error}`);
+        setNotification({ message: `Failed to leave room: ${data.error}`, visible: true });
       }
     } catch (error) {
-      console.error('[RoomManager] Error sending /leave request:', error);
+      console.error(`[RoomManager] Error sending /leave request: ${error.message}`);
+      setNotification({ message: 'Failed to leave room', visible: true });
     }
   }, [peerId]);
 
@@ -93,7 +98,7 @@ const RoomManager = ({ peerId }) => {
       console.log('[RoomManager] No location available, skipping broadcast');
       return;
     }
-    console.log(`[RoomManager] Starting broadcast for peer ${peerId}, attempt ${attempt}`);
+    console.log(`[RoomManager] Starting broadcast for peer ${peerId}, attempt ${attempt}, lat=${location.latitude}, lon=${location.longitude}`);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -114,7 +119,7 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Broadcast response: ${data.status}, peerList: ${data.peerList}`);
       if (data.status === 'created' || data.status === 'joined') {
-        // setNotification({ message: 'Room joined', visible: true });
+        setNotification({ message: 'Room joined', visible: true });
         if (data.peerList && data.peerList.length > 0) {
           setPeerList(data.peerList);
           initiateGroupChat(data.peerList);
@@ -122,16 +127,18 @@ const RoomManager = ({ peerId }) => {
           setPeerList([]);
         }
       } else {
-        console.log(`[RoomManager] Unexpected response data:`, data);
+        console.log(`[RoomManager] Unexpected response data: ${JSON.stringify(data)}`);
+        setNotification({ message: 'Unexpected broadcast response', visible: true });
       }
     } catch (error) {
-      console.error('[RoomManager] Broadcast error:', error);
+      console.error(`[RoomManager] Broadcast error: ${error.message}`);
       if (attempt <= 3) {
         const delay = Math.pow(2, attempt) * 1000;
         console.log(`[RoomManager] Retrying broadcast in ${delay}ms (attempt ${attempt + 1})`);
         setTimeout(() => broadcast(attempt + 1), delay);
       } else {
         console.log('[RoomManager] Max retry attempts reached');
+        setNotification({ message: 'Failed to connect to server', visible: true });
       }
     }
   }, [peerId, location, initiateGroupChat]);
@@ -142,7 +149,7 @@ const RoomManager = ({ peerId }) => {
       console.log('[RoomManager] No location available, skipping location check');
       return;
     }
-    console.log(`[RoomManager] Checking location for peer ${peerId}`);
+    console.log(`[RoomManager] Checking location for peer ${peerId}, lat=${location.latitude}, lon=${location.longitude}`);
     try {
       const response = await fetch('https://hello-there-backend-dao6.onrender.com/check_location', {
         method: 'POST',
@@ -159,10 +166,11 @@ const RoomManager = ({ peerId }) => {
         setPeerList([]);
         setMessages([]);
         closeWebRTC();
-        // setNotification({ message: 'Removed from room due to distance', visible: true });
+        setNotification({ message: 'Removed from room due to distance', visible: true });
       }
     } catch (error) {
-      console.error('[RoomManager] Error checking location:', error);
+      console.error(`[RoomManager] Error checking location: ${error.message}`);
+      setNotification({ message: 'Failed to check location', visible: true });
     }
   }, [peerId, location]);
 
@@ -185,20 +193,23 @@ const RoomManager = ({ peerId }) => {
             await initWebRTC(peerId, msg.sender, onMessageCallback);
             console.log(`[RoomManager] WebRTC initialized with ${msg.sender}`);
           } catch (error) {
-            console.error(`[RoomManager] Failed to initialize WebRTC with ${msg.sender}:`, error);
+            console.error(`[RoomManager] Failed to initialize WebRTC with ${msg.sender}: ${error.message}`);
+            setNotification({ message: `Failed to connect to peer ${msg.sender}`, visible: true });
           }
         } else if (msg.type === 'peer-left') {
           console.log(`[RoomManager] Peer ${msg.sender} left, closing WebRTC`);
           closeWebRTC(msg.sender);
           setPeerList(prev => prev.filter(p => p !== msg.sender));
           setMessages(prev => prev.filter(m => m.sender !== msg.sender));
+          setNotification({ message: `Peer ${msg.sender} left`, visible: true });
         } else if (msg.type === 'offer') {
           console.log(`[RoomManager] Received offer from ${msg.sender}, processing`);
           try {
             await initWebRTC(peerId, msg.sender, onMessageCallback, msg.data);
             console.log(`[RoomManager] Processed offer from ${msg.sender}`);
           } catch (error) {
-            console.error(`[RoomManager] Failed to process offer from ${msg.sender}:`, error);
+            console.error(`[RoomManager] Failed to process offer from ${msg.sender}: ${error.message}`);
+            setNotification({ message: `Failed to process offer from ${msg.sender}`, visible: true });
           }
         } else if (msg.type === 'answer') {
           console.log(`[RoomManager] Received answer from ${msg.sender}, signaling state: ${getSignalingState(msg.sender)}`);
@@ -206,7 +217,8 @@ const RoomManager = ({ peerId }) => {
             await setRemoteDescription(msg.sender, msg.data);
             console.log(`[RoomManager] Processed answer from ${msg.sender}`);
           } catch (error) {
-            console.error(`[RoomManager] Failed to process answer from ${msg.sender}:`, error);
+            console.error(`[RoomManager] Failed to process answer from ${msg.sender}: ${error.message}`);
+            setNotification({ message: `Failed to process answer from ${msg.sender}`, visible: true });
           }
         } else if (msg.type === 'ice-candidate') {
           console.log(`[RoomManager] Received ICE candidate from ${msg.sender}`);
@@ -214,12 +226,14 @@ const RoomManager = ({ peerId }) => {
             await addIceCandidate(msg.sender, msg.data);
             console.log(`[RoomManager] Processed ICE candidate from ${msg.sender}`);
           } catch (error) {
-            console.error(`[RoomManager] Failed to process ICE candidate from ${msg.sender}:`, error);
+            console.error(`[RoomManager] Failed to process ICE candidate from ${msg.sender}: ${error.message}`);
+            setNotification({ message: `Failed to process ICE candidate from ${msg.sender}`, visible: true });
           }
         }
       }
     } catch (error) {
-      console.error('[RoomManager] Error polling signaling messages:', error);
+      console.error(`[RoomManager] Error polling signaling messages: ${error.message}`);
+      setNotification({ message: 'Failed to poll signaling messages', visible: true });
     }
   }, [peerId, onMessageCallback]);
 
@@ -274,7 +288,7 @@ const RoomManager = ({ peerId }) => {
         console.log('[RoomManager] Checking location');
         checkLocation();
       }, 10 * 1000);
-    }, 2000);
+    }, 10000); // Increased to 5 seconds
     return () => {
       console.log('[RoomManager] Cleaning up location check interval');
       clearInterval(locationCheckInterval);
@@ -429,7 +443,7 @@ const RoomManager = ({ peerId }) => {
 
           .peer-status .connected-word {
             color: #00A97F;
-            text-shadow: 0 0 4px rgba(0, 169, 127, 0.6); /* mild glow */
+            text-shadow: 0 0 4px rgba(0, 169, 127, 0.6);
           }
 
           .cssload-container * {
