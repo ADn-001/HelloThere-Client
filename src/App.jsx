@@ -60,11 +60,13 @@ const App = () => {
           }
 
           .app-container h1 {
-            font-size: 24px;
+            font-size: 34px;
             font-weight: 700;
-            color: #D1D5DB;
-            text-align: center;
+            color:rgb(184, 191, 200);
             margin-bottom: 16px;
+            margin-top: 0px;
+            padding-left:0.5rem;
+            display: flex;
           }
         `}
       </style>
