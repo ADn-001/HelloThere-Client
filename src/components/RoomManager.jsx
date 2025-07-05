@@ -119,7 +119,7 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Broadcast response: ${data.status}, peerList: ${data.peerList}`);
       if (data.status === 'created' || data.status === 'joined') {
-        setNotification({ message: 'Room joined', visible: true });
+        // setNotification({ message: 'Room joined', visible: true });
         if (data.peerList && data.peerList.length > 0) {
           setPeerList(data.peerList);
           initiateGroupChat(data.peerList);
