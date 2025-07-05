@@ -1,4 +1,6 @@
-# Getting Started with Create React App
+# Client Submodule for Hello-There made using CRA
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
