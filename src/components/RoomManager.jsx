@@ -288,7 +288,7 @@ const RoomManager = ({ peerId }) => {
         console.log('[RoomManager] Checking location');
         checkLocation();
       }, 10 * 1000);
-    }, 10000); // Increased to 5 seconds
+    }, 600*1000); // Increased to 5 seconds
     return () => {
       console.log('[RoomManager] Cleaning up location check interval');
       clearInterval(locationCheckInterval);
