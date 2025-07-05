@@ -156,10 +156,10 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Check location response: ${data.status}`);
       if (data.status === 'removed') {
-        setPeerList([]);
-        setMessages([]);
-        closeWebRTC();
-        setNotification({ message: 'Removed from room due to distance', visible: true });
+        // setPeerList([]);
+        // setMessages([]);
+        // closeWebRTC();
+        // setNotification({ message: 'Removed from room due to distance', visible: true });
       }
     } catch (error) {
       console.error('[RoomManager] Error checking location:', error);
