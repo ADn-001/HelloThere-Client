@@ -7,31 +7,50 @@ const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/static/js/main.chunk.js', // Main JS bundle (adjust based on build output)
-  '/static/css/main.chunk.css', // Main CSS bundle (adjust based on build output)
   '/favicon.ico',
   '/logo192.png',
   '/logo512.png'
 ];
 
+// Dynamically cache all JS and CSS files from build
+const dynamicCachePaths = [
+  '/static/js/',
+  '/static/css/'
+];
+
 /**
- * Install event: Cache essential static assets for offline use
+ * Install event: Cache essential and dynamic assets for offline use
  */
 self.addEventListener('install', (event) => {
   console.log('[ServiceWorker] Installing service worker');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
+        // Cache static assets
         console.log('[ServiceWorker] Caching static assets:', urlsToCache);
-        return cache.addAll(urlsToCache).catch((error) => {
-          console.error('[ServiceWorker] Failed to cache asset:', error);
+        await cache.addAll(urlsToCache).catch((error) => {
+          console.error('[ServiceWorker] Failed to cache static asset:', error);
         });
+
+        // Dynamically cache JS and CSS files
+        for (const path of dynamicCachePaths) {
+          try {
+            const response = await fetch(path);
+            if (response.ok) {
+              const text = await response.text();
+              const assets = text.match(/\/static\/(js|css)\/[^"']+\.(js|css)/g) || [];
+              console.log('[ServiceWorker] Caching dynamic assets:', assets);
+              await cache.addAll(assets);
+            }
+          } catch (error) {
+            console.error(`[ServiceWorker] Failed to fetch directory ${path}:`, error);
+          }
+        }
       })
       .catch((error) => {
         console.error('[ServiceWorker] Cache installation failed:', error);
       })
   );
-  // Force immediate activation to avoid waiting for old clients
   self.skipWaiting();
 });
 
@@ -94,7 +113,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Bypass non-GET requests (e.g., POST)
+  // Bypass non-GET requests
   if (event.request.method !== 'GET') {
     console.log(`[ServiceWorker] Bypassing cache for non-GET request: ${requestUrl.pathname}`);
     event.respondWith(fetch(event.request));
@@ -107,7 +126,7 @@ self.addEventListener('fetch', (event) => {
       .then((cachedResponse) => {
         if (cachedResponse) {
           console.log(`[ServiceWorker] Serving from cache: ${requestUrl.pathname}`);
-          // Fetch in background to update cache
+          // Update cache in background
           event.waitUntil(
             fetch(event.request)
               .then((networkResponse) => {
@@ -125,11 +144,10 @@ self.addEventListener('fetch', (event) => {
           return cachedResponse;
         }
 
-        // Fetch from network if not cached
         console.log(`[ServiceWorker] Fetching from network: ${requestUrl.pathname}`);
         return fetch(event.request)
           .then((networkResponse) => {
-            if (networkResponse.ok && urlsToCache.some((url) => requestUrl.pathname.startsWith(url))) {
+            if (networkResponse.ok && requestUrl.pathname.match(/\.(js|css|png|ico)$/)) {
               return caches.open(CACHE_NAME).then((cache) => {
                 console.log(`[ServiceWorker] Caching new response: ${requestUrl.pathname}`);
                 cache.put(event.request, networkResponse.clone());
