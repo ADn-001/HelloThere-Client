@@ -114,7 +114,7 @@ const RoomManager = ({ peerId }) => {
       const data = await response.json();
       console.log(`[RoomManager] Broadcast response: ${data.status}, peerList: ${data.peerList}`);
       if (data.status === 'created' || data.status === 'joined') {
-        setNotification({ message: 'Room joined', visible: true });
+        // setNotification({ message: 'Room joined', visible: true });
         if (data.peerList && data.peerList.length > 0) {
           setPeerList(data.peerList);
           initiateGroupChat(data.peerList);
@@ -159,7 +159,7 @@ const RoomManager = ({ peerId }) => {
         setPeerList([]);
         setMessages([]);
         closeWebRTC();
-        setNotification({ message: 'Removed from room due to distance', visible: true });
+        // setNotification({ message: 'Removed from room due to distance', visible: true });
       }
     } catch (error) {
       console.error('[RoomManager] Error checking location:', error);
