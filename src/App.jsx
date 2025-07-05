@@ -20,7 +20,7 @@ const App = () => {
     const handleBeforeUnload = async () => {
       console.log('[App] Cleaning up: Peer leaving');
       try {
-        await fetch('https://localhost:5000/leave', {
+        await fetch('https://hello-there-backend-dao6.onrender.com/leave', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ peerId }),

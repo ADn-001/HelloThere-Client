@@ -42,7 +42,7 @@ const RoomManager = ({ peerId }) => {
   const initiateGroupChat = useCallback(async (peers) => {
     console.log(`[RoomManager] Initiating group chat with peers: ${peers}`);
     try {
-      const response = await fetch('https://localhost:5000/initiate-group-chat', {
+      const response = await fetch('https://hello-there-backend-dao6.onrender.com/initiate-group-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ peerId }),
@@ -68,7 +68,7 @@ const RoomManager = ({ peerId }) => {
   const handleLeave = useCallback(async () => {
     console.log('[RoomManager] Leave button clicked, sending /leave request');
     try {
-      const response = await fetch('https://localhost:5000/leave', {
+      const response = await fetch('https://hello-there-backend-dao6.onrender.com/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ peerId }),
@@ -98,7 +98,7 @@ const RoomManager = ({ peerId }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch('https://localhost:5000/broadcast', {
+      const response = await fetch('https://hello-there-backend-dao6.onrender.com/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +144,7 @@ const RoomManager = ({ peerId }) => {
     }
     console.log(`[RoomManager] Checking location for peer ${peerId}`);
     try {
-      const response = await fetch('https://localhost:5000/check_location', {
+      const response = await fetch('https://hello-there-backend-dao6.onrender.com/check_location', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -170,7 +170,7 @@ const RoomManager = ({ peerId }) => {
   const pollSignalingMessages = useCallback(async () => {
     console.log(`[RoomManager] Polling signaling messages for peer ${peerId}`);
     try {
-      const response = await fetch('https://localhost:5000/get-signaling-messages', {
+      const response = await fetch('https://hello-there-backend-dao6.onrender.com/get-signaling-messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ peerId }),

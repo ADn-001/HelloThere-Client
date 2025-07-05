@@ -190,7 +190,7 @@ async function sendSignalingMessage(peerId, targetPeerId, message) {
                  message.type === 'answer' ? { peerId, targetPeerId, answer: message.answer } :
                  { peerId, targetPeerId, candidate: message.candidate };
     console.log(`[Client] Sending ${message.type} to ${targetPeerId}:`, body);
-    const response = await fetch(`https://localhost:5000${endpoint}`, {
+    const response = await fetch(`https://hello-there-backend-dao6.onrender.com${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
